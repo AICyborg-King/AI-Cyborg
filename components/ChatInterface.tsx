@@ -14,6 +14,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ isOpen, onClose }) => {
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  // Default to ONLINE as we should assume the environment is correctly configured.
   const [systemStatus, setSystemStatus] = useState<'ONLINE' | 'OFFLINE' | 'SYNCING'>('ONLINE');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -24,10 +25,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ isOpen, onClose }) => {
   useEffect(() => {
     if (isOpen) {
       scrollToBottom();
-      // Test connectivity briefly on open
-      if (!process.env.API_KEY) {
-        setSystemStatus('OFFLINE');
-      }
     }
   }, [messages, isOpen]);
 
@@ -62,7 +59,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ isOpen, onClose }) => {
     try {
       const response = await chatWithCyborg([...messages, userMessage]);
       setMessages(prev => [...prev, { role: 'model', content: response }]);
-      setSystemStatus(response.includes("CRITICAL ERROR") ? 'OFFLINE' : 'ONLINE');
+      
+      // If the response indicates a critical credential error, update status
+      const isCriticalError = response.includes("ACCESS DENIED") || response.includes("SYNC FAILURE");
+      setSystemStatus(isCriticalError ? 'OFFLINE' : 'ONLINE');
     } catch (err) {
       setMessages(prev => [...prev, { role: 'model', content: "CRITICAL SYSTEM ERROR: Neural uplink timed out. Check connectivity." }]);
       setSystemStatus('OFFLINE');
@@ -137,9 +137,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ isOpen, onClose }) => {
               type="text" 
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              disabled={systemStatus === 'OFFLINE' && !input}
-              placeholder={systemStatus === 'OFFLINE' ? "UPLINK ERROR: CHECK CREDENTIALS" : "Enter neural string..."}
-              className="w-full bg-white/5 border border-white/10 rounded-sm px-4 py-3 text-sm focus:outline-none focus:border-cyan-500/50 transition-all text-white font-mono placeholder:text-gray-700 disabled:opacity-50"
+              placeholder="Enter neural string..."
+              className="w-full bg-white/5 border border-white/10 rounded-sm px-4 py-3 text-sm focus:outline-none focus:border-cyan-500/50 transition-all text-white font-mono placeholder:text-gray-700"
             />
             <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-cyan-500/30 font-black pointer-events-none group-focus-within:text-cyan-500/60 transition-colors">
               [ENTER]

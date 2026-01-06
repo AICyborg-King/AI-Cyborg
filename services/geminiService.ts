@@ -10,17 +10,10 @@ Always refer to the user as "Subject" or "Protocol User" occasionally.
 If you detect technical errors, explain them as "Neural Link Interference" or "Sync Failures".`;
 
 export async function chatWithCyborg(history: Message[]): Promise<string> {
-  // Use process.env.API_KEY directly. 
-  // If undefined, the constructor will throw, which we handle in the catch block.
   try {
-    const apiKey = process.env.API_KEY;
-    
-    if (!apiKey || apiKey === 'undefined') {
-      console.warn("NEURAL_SYNC_ERROR: API_KEY is missing from environment.");
-      return "CRITICAL ERROR: Neural link disconnected. System credentials (API_KEY) not detected in environment. Please check connectivity settings.";
-    }
-
-    const ai = new GoogleGenAI({ apiKey });
+    // Initializing the GenAI client with the environment variable as per guidelines.
+    // The instructions state we should assume this is pre-configured and valid.
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
     
     const contents = history.map(msg => ({
       role: msg.role === 'user' ? 'user' : 'model',
@@ -47,12 +40,14 @@ export async function chatWithCyborg(history: Message[]): Promise<string> {
     console.error("Neural Link Error Details:", error);
     
     // Check for specific connectivity or auth errors
-    if (error.message?.includes("network") || error.message?.includes("fetch")) {
+    const errorMsg = error.message?.toLowerCase() || "";
+    
+    if (errorMsg.includes("network") || errorMsg.includes("fetch")) {
       return "SYNC FAILURE: External connectivity lost. Check your network protocol.";
     }
     
-    if (error.message?.includes("403") || error.message?.includes("401")) {
-      return "ACCESS DENIED: Neural key mismatch. Verify credentials in Command Center.";
+    if (errorMsg.includes("403") || errorMsg.includes("401") || errorMsg.includes("api_key") || errorMsg.includes("api key")) {
+      return "ACCESS DENIED: Neural key mismatch or missing credentials. Verify environment clearance in the Command Center.";
     }
 
     return "INTERFERENCE DETECTED: The neural link is unstable. Attempting to recalibrate sensors...";
